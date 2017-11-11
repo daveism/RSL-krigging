@@ -1,0 +1,313 @@
+---
+title: "Krigging Example with Sea Level Rise"
+output:
+  html_notebook: default
+  html_document: default
+---
+
+First install and load the libraries
+```{r}
+
+is.installed <- function(mypkg){
+  is.element(mypkg, installed.packages()[,1])
+}
+
+#install if not installed
+if (!is.installed("stringr")){ install.packages("sp") }
+if (!is.installed("dplyr")){ install.packages("gstat") }
+if (!is.installed("ggplot2")){ install.packages("dplyr") }
+if (!is.installed("tidyr")){ install.packages("ggplot2") }
+if (!is.installed("lubridate")){ install.packages("scales") }
+if (!is.installed("ggmap")){ install.packages("magrittr") }
+if (!is.installed("maptools")){ install.packages("maps") }
+if (!is.installed("maps")){ install.packages("maptools") }
+if (!is.installed("maptools")){ install.packages("plyr") }
+if (!is.installed("sp")){ install.packages("sp") }
+if (!is.installed("leaflet")){ install.packages("rgdal") }
+if (!is.installed("leaflet")){ install.packages("rgeos") }
+if (!is.installed("leaflet")){ install.packages("raster") }
+
+suppressPackageStartupMessages({
+  library(sp)
+  library(gstat)
+  library(dplyr) 
+  library(ggplot2)
+  library(scales) 
+  library(magrittr)
+  library(maps)
+  library(maptools)
+  library(plyr)
+  library(rgdal)
+  library(rgeos)
+  library(raster)
+})
+
+options(scipen = 999)  #because scientific notation is not readable by normal people :)
+
+```
+
+Load the RSL data I already did some clean up.
+```{r}
+
+intput_data <- "/Users/daveism/homework11062017"
+source(file.path(intput_data,"chart_functions.R"))
+
+rsl <- read.csv(file.path(intput_data,"rsl.csv"))
+
+glimpse(rsl)
+```
+import world Ocean Shapefile, we will use this to mask the kriging results later
+```{r}
+shapefiles <- "/Users/daveism/homework11062017/shapefile"
+ocean <- readOGR(dsn=shapefiles, layer="ocean")
+places <- readOGR(dsn=shapefiles, layer="places")
+places <- subset(places, places$adm0name == 'United States of America')
+```
+import world Locations Shapefile then subset it for US cities only.  We will use this later to zoom into several areas of the country.
+```{r}
+places <- readOGR(dsn=shapefiles, layer="places")
+places <- subset(places, places$adm0name == 'United States of America')
+```
+
+setup min and max lat long so we can limit the map later
+```{r}
+
+  max_lat <- as.numeric(max(rsl$lat))
+  min_lat <- as.numeric(min(rsl$lat))
+  max_long <-as.numeric(max(rsl$long))
+  min_long <- as.numeric(min(rsl$long))
+  
+  xmin <- max_long
+  xmax <- min_long
+  ymin <- min_lat
+  ymax <- max_lat
+  buff <- 15
+
+worldmap = map_data ("world")
+wrld <- c(geom_polygon(aes(long,lat,group=group), size = 0.1, colour= "gray50", fill="cornsilk", data=worldmap))
+
+  ditch_the_axes <- theme(
+  axis.text = element_blank(),
+  axis.line = element_blank(),
+  axis.ticks = element_blank(),
+  panel.border = element_blank(),
+  panel.grid = element_blank(),
+  axis.title = element_blank()
+  )
+
+```
+
+Scale rsl so we can get a log we will use this later
+```{r}
+min_rsl <- abs(min(rsl$real_rsl))
+rsl$scaled_rsl <- (rsl$real_rsl + min_rsl) + 1
+```
+
+View RSL 
+```{r}
+rsl %>% as.data.frame %>% 
+  ggplot(aes(long, lat)) + geom_point(aes(size=real_rsl), color="blue", alpha=3/4) + 
+  ggtitle("holocene RSL mm per year") + coord_equal() + theme_bw()
+```
+
+View GPS
+```{r}
+rsl %>% as.data.frame %>% 
+  ggplot(aes(long, lat)) + geom_point(aes(size=real_gps), color="blue", alpha=3/4) + 
+  ggtitle("GPS mm per year") + coord_equal() + theme_bw()
+```
+
+View Average GPS
+```{r}
+
+rsl %>% as.data.frame %>% 
+  ggplot(aes(long, lat)) + geom_point(aes(size=real_gps_avg), color="blue", alpha=3/4) + 
+  ggtitle("Average GPS mm per year") + coord_equal() + theme_bw()
+```
+
+Map observations with a simple base map
+```{r}
+ ggplot() +
+    coord_cartesian(xlim = c((xmin),(xmax)), ylim = c((ymin),(ymax))) +
+    wrld  +
+   geom_point(data = rsl, aes(x = long, y = lat, size=real_rsl), color="blue", alpha=3/4) +
+     theme_minimal(base_size=9) +
+   ditch_the_axes +
+    theme(panel.background = element_rect(fill='lightblue'))
+```
+
+make a new dataset so we can convert it the rsl data to a sp data frame
+```{r}
+rslsp <- rsl
+coordinates(rslsp) <- ~ long + lat
+bbox(rslsp)
+glimpse(rslsp)
+```
+
+map RSL using the scaled points
+```{r}
+ ggplot() +
+    coord_cartesian(xlim = c((xmin),(xmax)), ylim = c((ymin),(ymax))) +
+    wrld  +
+   geom_point(data = rsl, aes(x = long, y = lat, size=scaled_rsl), color="blue", alpha=3/4) +
+     theme_minimal(base_size=9) +
+   ditch_the_axes +
+    theme(panel.background = element_rect(fill='lightblue'))
+```
+
+Remove Duplicate points?  I cannot find them but R complains about them.
+```{r}
+#apparently there are duplicated points I cannot find them but this remove them
+rslsp <- rslsp [-zerodist(rslsp)[,1],]
+```
+
+Do variogram and fitted variogram?
+```{r}
+lzn.vgm <- variogram(scaled_rsl~1, rslsp) # calculates sample variogam values 
+lzn.fit <- fit.variogram(lzn.vgm, model=vgm(1, "Sph", 900, 1)) # fit model
+```
+
+plot the variogram
+```{r}
+plot(lzn.vgm, lzn.fit)
+```
+Create the spatial grid covering the study area here we are setting the number of squaures to 5000
+```{r}
+grd <- as.data.frame(spsample(rslsp, "regular", n=5000))
+grd <- as.data.frame(spsample(rslsp, "regular", n=5000))
+
+names(grd) <- c("x", "y")
+coordinates(grd) <- c("x", "y")
+
+gridded(grd) <- TRUE  # Create SpatialPixel object
+fullgrid(grd) <- TRUE  # Create SpatialGrid object
+plot(grd)
+```
+Run ordinary krigging on the scaled RSL.
+```{r}
+lzn.kriged <- krige(scaled_rsl~1, rslsp , grd, model=lzn.fit)
+```
+
+Plot the points and the krigging results...
+```{r}
+lzn.kriged %>% as.data.frame %>%
+  ggplot(aes(x=x, y=y)) + geom_tile(aes(fill=var1.pred)) + coord_equal() +
+  scale_fill_gradient(low = "yellow", high="red") +
+  geom_point(data = rsl, aes(x = long, y = lat, size=scaled_rsl), color="blue", alpha=3/4) +
+  scale_x_continuous(labels=comma) + scale_y_continuous(labels=comma) +
+  theme_bw()
+```
+Mask the krigged outout with the ocean shapefile so we do not see predicted values in land.  then convert the raster back to sp data frame. 
+```{r}
+krigged.raster      <- raster(lzn.kriged)
+krigged.raster.masked     <- mask(r, ocean)
+lzn.kriged.masked <- as(krigged.raster.masked, 'SpatialGridDataFrame')
+```
+
+Plot the masked krigging.
+```{r}
+
+lzn.kriged.masked %>% as.data.frame %>%
+  ggplot(aes(x=s1, y=s2)) + geom_tile(aes(fill=var1.pred)) + coord_equal() +
+      scale_fill_gradient(low = "yellow", high="red") +
+      coord_cartesian(xlim = c((xmin),(xmax)), ylim = c((ymin),(ymax))) +
+    wrld  +
+   geom_point(data = rsl, aes(x = long, y = lat, size=scaled_rsl), color="blue", alpha=3/4) +
+     theme_minimal(base_size=9) +
+   ditch_the_axes
+```
+
+Zoom to some selected areas to take a peak at what's happening locally.
+```{r}
+plotloc <- function(loc){
+  #create extent for Balitmore
+  xmin <- loc$longitude - 2.5
+  xmax <- loc$longitude + 2.5
+  ymin <-  loc$latitude - 1.5
+  ymax <-  loc$latitude + 1.5
+  
+  map <-  lzn.kriged %>% as.data.frame %>%
+    ggplot(aes(x=x, y=y)) + geom_tile(aes(fill=var1.pred)) + coord_equal() +
+        scale_fill_gradient(low = "yellow", high="red") +
+        coord_cartesian(xlim = c((xmin),(xmax)), ylim = c((ymin),(ymax))) +
+      wrld  +
+     geom_point(data = rsl, aes(x = long, y = lat, size=scaled_rsl), color="blue", alpha=3/4) +
+       theme_minimal(base_size=9) +
+     ditch_the_axes
+
+  return(map)
+}
+```
+
+## Boston
+```{r}
+Boston <- subset(places, places$geonameid == 4930956)
+
+BostonMap <- plotloc(Boston)
+BostonMap
+```
+
+## New York
+```{r}
+
+NewYork <- subset(places, places$geonameid == 5128581)
+
+ NewYorkMap <- plotloc(NewYork)
+ NewYorkMap
+```
+
+## Baltimore
+```{r}
+
+Baltimore <- subset(places, places$geonameid == 4347778)
+
+BaltimoreMap <- plotloc(Baltimore)
+BaltimoreMap
+```
+
+## Norfolk
+```{r}
+
+Norfolk <- subset(places, places$geonameid == 4776222)
+
+NorfolkMap <- plotloc(Norfolk)
+NorfolkMap
+```
+
+## Wilmington
+```{r}
+
+Wilmington <- subset(places, places$geonameid == 4499379)
+
+WilmingtonMap <- plotloc(Wilmington)
+WilmingtonMap
+```
+
+## Charleston
+```{r}
+
+Charleston <- subset(places, places$geonameid == 4574324)
+
+CharlestonMap <- plotloc(Charleston)
+CharlestonMap
+```
+
+## Savannah
+```{r}
+
+Savannah <- subset(places, places$geonameid == 4221552)
+
+
+SavannahMap <- plotloc(Savannah)
+SavannahMap
+```
+
+## Jacksonville
+```{r}
+
+Jacksonville <- subset(places, places$geonameid == 4160021)
+
+
+JacksonvilleMap <- plotloc(Jacksonville)
+JacksonvilleMap
+```
