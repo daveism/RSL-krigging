@@ -1,2 +1,2 @@
 # RSL-krigging
-example at rsl_krigging.nb.html
+example at https://daveism.github.io/RSL-krigging/rsl_krigging.nb.html

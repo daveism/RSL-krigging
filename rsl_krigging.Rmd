@@ -49,8 +49,7 @@ options(scipen = 999)  #because scientific notation is not readable by normal pe
 Load the RSL data I already did some clean up.
 ```{r}
 
-intput_data <- "/Users/daveism/homework11062017"
-source(file.path(intput_data,"chart_functions.R"))
+intput_data <- "/Users/daveism/GitHub/RSL-krigging/data"
 
 rsl <- read.csv(file.path(intput_data,"rsl.csv"))
 
@@ -58,15 +57,24 @@ glimpse(rsl)
 ```
 import world Ocean Shapefile, we will use this to mask the kriging results later
 ```{r}
-shapefiles <- "/Users/daveism/homework11062017/shapefile"
+shapefiles <- "/Users/daveism/GitHub/RSL-krigging/shapefile"
 ocean <- readOGR(dsn=shapefiles, layer="ocean")
 places <- readOGR(dsn=shapefiles, layer="places")
 places <- subset(places, places$adm0name == 'United States of America')
 ```
+
 import world Locations Shapefile then subset it for US cities only.  We will use this later to zoom into several areas of the country.
 ```{r}
 places <- readOGR(dsn=shapefiles, layer="places")
 places <- subset(places, places$adm0name == 'United States of America')
+```
+
+import states Shapefile.  We will use this later to zoom into several areas of the country.
+```{r}
+states <- readOGR(dsn=shapefiles, layer="states")
+states@data$id <- rownames(states@data)
+states.points = fortify(states, region="id")
+states <- join(states.points, states@data, by="id")
 ```
 
 setup min and max lat long so we can limit the map later
@@ -86,6 +94,8 @@ setup min and max lat long so we can limit the map later
 worldmap = map_data ("world")
 wrld <- c(geom_polygon(aes(long,lat,group=group), size = 0.1, colour= "gray50", fill="cornsilk", data=worldmap))
 
+us_base <-  c(geom_polygon(aes(long,lat,group=group), size = 0.1, colour= "gray50", fill="cornsilk", data=states))
+  
   ditch_the_axes <- theme(
   axis.text = element_blank(),
   axis.line = element_blank(),
@@ -230,7 +240,7 @@ plotloc <- function(loc){
     ggplot(aes(x=x, y=y)) + geom_tile(aes(fill=var1.pred)) + coord_equal() +
         scale_fill_gradient(low = "yellow", high="red") +
         coord_cartesian(xlim = c((xmin),(xmax)), ylim = c((ymin),(ymax))) +
-      wrld  +
+      us_base  +
      geom_point(data = rsl, aes(x = long, y = lat, size=scaled_rsl), color="blue", alpha=3/4) +
        theme_minimal(base_size=9) +
      ditch_the_axes
@@ -239,7 +249,7 @@ plotloc <- function(loc){
 }
 ```
 
-## Boston
+## Boston, MA
 ```{r}
 Boston <- subset(places, places$geonameid == 4930956)
 
@@ -247,7 +257,7 @@ BostonMap <- plotloc(Boston)
 BostonMap
 ```
 
-## New York
+## New York, NY
 ```{r}
 
 NewYork <- subset(places, places$geonameid == 5128581)
@@ -256,7 +266,7 @@ NewYork <- subset(places, places$geonameid == 5128581)
  NewYorkMap
 ```
 
-## Baltimore
+## Baltimore, MD
 ```{r}
 
 Baltimore <- subset(places, places$geonameid == 4347778)
@@ -265,7 +275,7 @@ BaltimoreMap <- plotloc(Baltimore)
 BaltimoreMap
 ```
 
-## Norfolk
+## Norfolk, VA
 ```{r}
 
 Norfolk <- subset(places, places$geonameid == 4776222)
@@ -274,7 +284,7 @@ NorfolkMap <- plotloc(Norfolk)
 NorfolkMap
 ```
 
-## Wilmington
+## Wilmington, NC
 ```{r}
 
 Wilmington <- subset(places, places$geonameid == 4499379)
@@ -283,7 +293,7 @@ WilmingtonMap <- plotloc(Wilmington)
 WilmingtonMap
 ```
 
-## Charleston
+## Charleston, SC
 ```{r}
 
 Charleston <- subset(places, places$geonameid == 4574324)
@@ -292,7 +302,7 @@ CharlestonMap <- plotloc(Charleston)
 CharlestonMap
 ```
 
-## Savannah
+## Savannah, SC
 ```{r}
 
 Savannah <- subset(places, places$geonameid == 4221552)
@@ -302,7 +312,7 @@ SavannahMap <- plotloc(Savannah)
 SavannahMap
 ```
 
-## Jacksonville
+## Jacksonville, FL
 ```{r}
 
 Jacksonville <- subset(places, places$geonameid == 4160021)
