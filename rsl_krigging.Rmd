@@ -5,6 +5,8 @@ output:
   html_document: default
 ---
 
+This is all on Github @ https://github.com/daveism/RSL-krigging
+
 First install and load the libraries
 ```{r}
 
