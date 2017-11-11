@@ -8,8 +8,9 @@ output:
       smooth_scroll: false
 ---
 
-This is all on Github @ https://github.com/daveism/RSL-krigging
-First install and load the libraries 
+Note: This is all on Github @ https://github.com/daveism/RSL-krigging
+
+## First install and load the libraries 
 ```{r}
 
 is.installed <- function(mypkg){
@@ -49,8 +50,7 @@ suppressPackageStartupMessages({
 options(scipen = 999)  #because scientific notation is not readable by normal people :)
 
 ```
-
-Load the RSL data I already did some clean up.
+## Load the RSL data I already did some clean up.
 ```{r}
 
 intput_data <- "/Users/daveism/GitHub/RSL-krigging/data"
@@ -59,7 +59,7 @@ rsl <- read.csv(file.path(intput_data,"rsl.csv"))
 
 glimpse(rsl)
 ```
-import world Ocean Shapefile, we will use this to mask the kriging results later
+## import world Ocean Shapefile, we will use this to mask the kriging results later
 ```{r}
 shapefiles <- "/Users/daveism/GitHub/RSL-krigging/shapefile"
 ocean <- readOGR(dsn=shapefiles, layer="ocean")
@@ -72,16 +72,14 @@ import world Locations Shapefile then subset it for US cities only.  We will use
 places <- readOGR(dsn=shapefiles, layer="places")
 places <- subset(places, places$adm0name == 'United States of America')
 ```
-
-import states Shapefile.  We will use this later to zoom into several areas of the country.
+## import states Shapefile.  We will use this later to zoom into several areas of the country.
 ```{r}
 states <- readOGR(dsn=shapefiles, layer="states")
 states@data$id <- rownames(states@data)
 states.points = fortify(states, region="id")
 states <- join(states.points, states@data, by="id")
 ```
-
-setup min and max lat long so we can limit the map later
+## setup min and max lat long so we can limit the map later
 ```{r}
 
   max_lat <- as.numeric(max(rsl$lat))
@@ -110,36 +108,31 @@ us_base <-  c(geom_polygon(aes(long,lat,group=group), size = 0.1, colour= "gray5
   )
 
 ```
-
-Scale rsl so we can get a log we will use this later
+## Scale rsl so we can get a log we will use this later
 ```{r}
 min_rsl <- abs(min(rsl$real_rsl))
 rsl$scaled_rsl <- (rsl$real_rsl + min_rsl) + 1
 ```
-
-View RSL 
+## View RSL 
 ```{r}
 rsl %>% as.data.frame %>% 
   ggplot(aes(long, lat)) + geom_point(aes(size=real_rsl), color="blue", alpha=3/4) + 
   ggtitle("holocene RSL mm per year") + coord_equal() + theme_bw()
 ```
-
-View GPS
+## View GPS
 ```{r}
 rsl %>% as.data.frame %>% 
   ggplot(aes(long, lat)) + geom_point(aes(size=real_gps), color="blue", alpha=3/4) + 
   ggtitle("GPS mm per year") + coord_equal() + theme_bw()
 ```
-
-View Average GPS
+## View Average GPS
 ```{r}
 
 rsl %>% as.data.frame %>% 
   ggplot(aes(long, lat)) + geom_point(aes(size=real_gps_avg), color="blue", alpha=3/4) + 
   ggtitle("Average GPS mm per year") + coord_equal() + theme_bw()
 ```
-
-Map observations with a simple base map
+## Map observations with a simple base map
 ```{r}
  ggplot() +
     coord_cartesian(xlim = c((xmin),(xmax)), ylim = c((ymin),(ymax))) +
@@ -149,16 +142,14 @@ Map observations with a simple base map
    ditch_the_axes +
     theme(panel.background = element_rect(fill='lightblue'))
 ```
-
-make a new dataset so we can convert it the rsl data to a sp data frame
+## Make a new dataset so we can convert the RSL data to a sp data frame
 ```{r}
 rslsp <- rsl
 coordinates(rslsp) <- ~ long + lat
 bbox(rslsp)
 glimpse(rslsp)
 ```
-
-map RSL using the scaled points
+## Map RSL using the scaled points
 ```{r}
  ggplot() +
     coord_cartesian(xlim = c((xmin),(xmax)), ylim = c((ymin),(ymax))) +
@@ -168,24 +159,21 @@ map RSL using the scaled points
    ditch_the_axes +
     theme(panel.background = element_rect(fill='lightblue'))
 ```
-
-Remove Duplicate points?  I cannot find them but R complains about them.
+## Remove Duplicate points?  I cannot find them but R complains about them.
 ```{r}
 #apparently there are duplicated points I cannot find them but this remove them
 rslsp <- rslsp [-zerodist(rslsp)[,1],]
 ```
-
-Do variogram and fitted variogram?
+## Do variogram and fitted variogram?
 ```{r}
 lzn.vgm <- variogram(scaled_rsl~1, rslsp) # calculates sample variogam values 
 lzn.fit <- fit.variogram(lzn.vgm, model=vgm(1, "Sph", 900, 1)) # fit model
 ```
-
-plot the variogram
+## plot the variogram
 ```{r}
 plot(lzn.vgm, lzn.fit)
 ```
-Create the spatial grid covering the study area here we are setting the number of squaures to 5000
+## Create the spatial grid covering the study area here we are setting the number of squaures to 5000
 ```{r}
 grd <- as.data.frame(spsample(rslsp, "regular", n=5000))
 grd <- as.data.frame(spsample(rslsp, "regular", n=5000))
@@ -197,12 +185,11 @@ gridded(grd) <- TRUE  # Create SpatialPixel object
 fullgrid(grd) <- TRUE  # Create SpatialGrid object
 plot(grd)
 ```
-Run ordinary krigging on the scaled RSL.
+## Run ordinary krigging on the scaled RSL.
 ```{r}
 lzn.kriged <- krige(scaled_rsl~1, rslsp , grd, model=lzn.fit)
 ```
-
-Plot the points and the krigging results...
+## Plot the points and the krigging results...
 ```{r}
 lzn.kriged %>% as.data.frame %>%
   ggplot(aes(x=x, y=y)) + geom_tile(aes(fill=var1.pred)) + coord_equal() +
@@ -211,14 +198,14 @@ lzn.kriged %>% as.data.frame %>%
   scale_x_continuous(labels=comma) + scale_y_continuous(labels=comma) +
   theme_bw()
 ```
-Mask the krigged outout with the ocean shapefile so we do not see predicted values in land.  then convert the raster back to sp data frame. 
+## Mask the krigged 
+outout with the ocean shapefile so we do not see predicted values in land.  then convert the raster back to sp data frame. 
 ```{r}
 krigged.raster      <- raster(lzn.kriged)
 krigged.raster.masked     <- mask(r, ocean)
 lzn.kriged.masked <- as(krigged.raster.masked, 'SpatialGridDataFrame')
 ```
-
-Plot the masked krigging.
+## Plot the masked krigging
 ```{r}
 
 lzn.kriged.masked %>% as.data.frame %>%
@@ -230,8 +217,8 @@ lzn.kriged.masked %>% as.data.frame %>%
      theme_minimal(base_size=9) +
    ditch_the_axes
 ```
-
-Zoom to some selected areas to take a peak at what's happening locally.
+## Zoom 
+Zoom to selected areas to take a peak at what's happening locally.
 ```{r}
 plotloc <- function(loc){
   #create extent for Balitmore
@@ -252,7 +239,6 @@ plotloc <- function(loc){
   return(map)
 }
 ```
-
 ## Boston, MA
 ```{r}
 Boston <- subset(places, places$geonameid == 4930956)
@@ -260,7 +246,6 @@ Boston <- subset(places, places$geonameid == 4930956)
 BostonMap <- plotloc(Boston)
 BostonMap
 ```
-
 ## New York, NY
 ```{r}
 
@@ -269,7 +254,6 @@ NewYork <- subset(places, places$geonameid == 5128581)
  NewYorkMap <- plotloc(NewYork)
  NewYorkMap
 ```
-
 ## Baltimore, MD
 ```{r}
 
@@ -278,7 +262,6 @@ Baltimore <- subset(places, places$geonameid == 4347778)
 BaltimoreMap <- plotloc(Baltimore)
 BaltimoreMap
 ```
-
 ## Norfolk, VA
 ```{r}
 
@@ -287,7 +270,6 @@ Norfolk <- subset(places, places$geonameid == 4776222)
 NorfolkMap <- plotloc(Norfolk)
 NorfolkMap
 ```
-
 ## Wilmington, NC
 ```{r}
 
@@ -296,7 +278,6 @@ Wilmington <- subset(places, places$geonameid == 4499379)
 WilmingtonMap <- plotloc(Wilmington)
 WilmingtonMap
 ```
-
 ## Charleston, SC
 ```{r}
 
@@ -305,7 +286,6 @@ Charleston <- subset(places, places$geonameid == 4574324)
 CharlestonMap <- plotloc(Charleston)
 CharlestonMap
 ```
-
 ## Savannah, SC
 ```{r}
 
@@ -315,7 +295,6 @@ Savannah <- subset(places, places$geonameid == 4221552)
 SavannahMap <- plotloc(Savannah)
 SavannahMap
 ```
-
 ## Jacksonville, FL
 ```{r}
 
