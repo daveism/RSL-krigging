@@ -1,13 +1,15 @@
 ---
 title: "Krigging Example with Sea Level Rise"
 output:
-  html_notebook: default
-  html_document: default
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
 ---
 
 This is all on Github @ https://github.com/daveism/RSL-krigging
-
-First install and load the libraries
+First install and load the libraries 
 ```{r}
 
 is.installed <- function(mypkg){
