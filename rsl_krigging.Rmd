@@ -1,8 +1,8 @@
 ---
-title: "Krigging Example with Sea Level Rise"
+title: "Krigging Example with Relative Sea Level Rise"
 output:
   html_document:
-    toc: true
+    toc: false
     toc_float:
       collapsed: false
       smooth_scroll: false
@@ -31,6 +31,7 @@ if (!is.installed("sp")){ install.packages("sp") }
 if (!is.installed("leaflet")){ install.packages("rgdal") }
 if (!is.installed("leaflet")){ install.packages("rgeos") }
 if (!is.installed("leaflet")){ install.packages("raster") }
+
 
 suppressPackageStartupMessages({
   library(sp)
@@ -79,6 +80,11 @@ states@data$id <- rownames(states@data)
 states.points = fortify(states, region="id")
 states <- join(states.points, states@data, by="id")
 ```
+## import buffered rsl points shapefile. we will use this to mask the krigging results
+```{r}
+rslBuffer <- readOGR(dsn=shapefiles, layer="rsl-points-buffer")
+```
+
 ## setup min and max lat long so we can limit the map later
 ```{r}
 
@@ -136,7 +142,7 @@ rsl %>% as.data.frame %>%
 ```{r}
  ggplot() +
     coord_cartesian(xlim = c((xmin),(xmax)), ylim = c((ymin),(ymax))) +
-    wrld  +
+    wrld + us_base  +
    geom_point(data = rsl, aes(x = long, y = lat, size=real_rsl), color="blue", alpha=3/4) +
      theme_minimal(base_size=9) +
    ditch_the_axes +
@@ -148,12 +154,16 @@ rslsp <- rsl
 coordinates(rslsp) <- ~ long + lat
 bbox(rslsp)
 glimpse(rslsp)
+
+#write shapefile un comment this if you want the rsl shapefile.  use to create a buffered shapefile for importing
+#writeOGR(obj=rslsp, dsn=shapefiles, layer="rslpoints", driver="ESRI Shapefile")
 ```
 ## Map RSL using the scaled points
 ```{r}
  ggplot() +
     coord_cartesian(xlim = c((xmin),(xmax)), ylim = c((ymin),(ymax))) +
     wrld  +
+    us_base +
    geom_point(data = rsl, aes(x = long, y = lat, size=scaled_rsl), color="blue", alpha=3/4) +
      theme_minimal(base_size=9) +
    ditch_the_axes +
@@ -173,10 +183,14 @@ lzn.fit <- fit.variogram(lzn.vgm, model=vgm(1, "Sph", 900, 1)) # fit model
 ```{r}
 plot(lzn.vgm, lzn.fit)
 ```
-## Create the spatial grid covering the study area here we are setting the number of squaures to 5000
+## Create the spatial grid covering the study area here we are setting the number of squares to 7500
 ```{r}
-grd <- as.data.frame(spsample(rslsp, "regular", n=5000))
-grd <- as.data.frame(spsample(rslsp, "regular", n=5000))
+
+#expand the bounding box so it convers more of the study area
+b <- gBuffer(rslsp, width=1) 
+rslbox <- bbox(b)
+
+grd <- as.data.frame(spsample(rslsp, bb=rslbox , "regular", n=7500))
 
 names(grd) <- c("x", "y")
 coordinates(grd) <- c("x", "y")
@@ -198,25 +212,35 @@ lzn.kriged %>% as.data.frame %>%
   scale_x_continuous(labels=comma) + scale_y_continuous(labels=comma) +
   theme_bw()
 ```
+
 ## Mask the krigged 
-outout with the ocean shapefile so we do not see predicted values in land.  then convert the raster back to sp data frame. 
+mask the outout with the coast line shapefile so we do not see predicted values in land.  
+Then convert the raster back to sp data frame. 
 ```{r}
-krigged.raster      <- raster(lzn.kriged)
-krigged.raster.masked     <- mask(r, ocean)
-lzn.kriged.masked <- as(krigged.raster.masked, 'SpatialGridDataFrame')
+krigged.raster <- raster(lzn.kriged)
+krigged.raster.maskedbuff <- mask(krigged.raster, rslBuffer)
+lzn.kriged.maskedbuff <- as(krigged.raster.maskedbuff, 'SpatialGridDataFrame')
+
+#write a tiff
+writeRaster(krigged.raster, filename="rsl-krigged.tif", format="GTiff", overwrite=TRUE)
 ```
+
 ## Plot the masked krigging
 ```{r}
+df <- as.data.frame(lzn.kriged.maskedbuff)
 
-lzn.kriged.masked %>% as.data.frame %>%
-  ggplot(aes(x=s1, y=s2)) + geom_tile(aes(fill=var1.pred)) + coord_equal() +
+  ggplot() + 
+    wrld  + us_base +  
+    geom_tile(data=df, aes(x=s1, y=s2, fill=var1.pred), , alpha=0.75) + coord_equal() +
       scale_fill_gradient(low = "yellow", high="red") +
       coord_cartesian(xlim = c((xmin),(xmax)), ylim = c((ymin),(ymax))) +
-    wrld  +
-   geom_point(data = rsl, aes(x = long, y = lat, size=scaled_rsl), color="blue", alpha=3/4) +
+       geom_point(data = rsl, aes(x = long, y = lat, size=scaled_rsl), color="blue", alpha=3/4) +
      theme_minimal(base_size=9) +
-   ditch_the_axes
+   ditch_the_axes +theme(panel.background = element_rect(fill='lightblue'))
+  
 ```
+
+
 ## Zoom 
 Zoom to selected areas to take a peak at what's happening locally.
 ```{r}
@@ -227,14 +251,15 @@ plotloc <- function(loc){
   ymin <-  loc$latitude - 1.5
   ymax <-  loc$latitude + 1.5
   
-  map <-  lzn.kriged %>% as.data.frame %>%
-    ggplot(aes(x=x, y=y)) + geom_tile(aes(fill=var1.pred)) + coord_equal() +
-        scale_fill_gradient(low = "yellow", high="red") +
-        coord_cartesian(xlim = c((xmin),(xmax)), ylim = c((ymin),(ymax))) +
-      us_base  +
-     geom_point(data = rsl, aes(x = long, y = lat, size=scaled_rsl), color="blue", alpha=3/4) +
-       theme_minimal(base_size=9) +
-     ditch_the_axes
+  df <- as.data.frame(lzn.kriged.maskedbuff)
+  map <- ggplot() + 
+    us_base  +    
+    geom_tile(data=df, aes(x=s1, y=s2, fill=var1.pred), alpha=0.75) + coord_equal() +
+      scale_fill_gradient(low = "yellow", high="red") +
+      coord_cartesian(xlim = c((xmin),(xmax)), ylim = c((ymin),(ymax))) +
+       geom_point(data = rsl, aes(x = long, y = lat, size=scaled_rsl), color="blue", alpha=3/4) +
+     theme_minimal(base_size=9) +
+   ditch_the_axes +theme(panel.background = element_rect(fill='lightblue'))
 
   return(map)
 }
