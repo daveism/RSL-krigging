@@ -176,10 +176,11 @@ rslsp <- rslsp [-zerodist(rslsp)[,1],]
 ## Do variogram and fitted variogram?
 ```{r}
 lzn.vgm <- variogram(scaled_rsl~1, rslsp) # calculates sample variogam values 
-lzn.fit <- fit.variogram(lzn.vgm, model=vgm(1, "Sph", 900, 1)) # fit model
-```
+plot(lzn.vgm)
+```  
 ## plot the variogram
 ```{r}
+lzn.fit <- fit.variogram(lzn.vgm, model=vgm("Gau")) # fit model
 plot(lzn.vgm, lzn.fit)
 ```
 ## Create the spatial grid covering the study area here we are setting the number of squares to 7500
