@@ -60,12 +60,9 @@ rsl <- read.csv(file.path(intput_data,"rsl.csv"))
 
 glimpse(rsl)
 ```
-## import world Ocean Shapefile, we will use this to mask the kriging results later
+### set the location of shapefile
 ```{r}
 shapefiles <- "/Users/daveism/GitHub/RSL-krigging/shapefile"
-ocean <- readOGR(dsn=shapefiles, layer="ocean")
-places <- readOGR(dsn=shapefiles, layer="places")
-places <- subset(places, places$adm0name == 'United States of America')
 ```
 
 import world Locations Shapefile then subset it for US cities only.  We will use this later to zoom into several areas of the country.
@@ -73,14 +70,16 @@ import world Locations Shapefile then subset it for US cities only.  We will use
 places <- readOGR(dsn=shapefiles, layer="places")
 places <- subset(places, places$adm0name == 'United States of America')
 ```
-## import states Shapefile.  We will use this later to zoom into several areas of the country.
+## import states Shapefile.  We will use this as a basemap later to zoom into several areas of the country.
 ```{r}
 states <- readOGR(dsn=shapefiles, layer="states")
 states@data$id <- rownames(states@data)
 states.points = fortify(states, region="id")
 states <- join(states.points, states@data, by="id")
 ```
-## import buffered rsl points shapefile. we will use this to mask the krigging results
+## import buffered rsl points shapefile. we will use this to mask the krigging results.
+
+I buffered the rsl points in QGIS.
 ```{r}
 rslBuffer <- readOGR(dsn=shapefiles, layer="rsl-points-buffer")
 ```
