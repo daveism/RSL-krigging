@@ -237,9 +237,7 @@ df <- as.data.frame(lzn.kriged.maskedbuff)
        geom_point(data = rsl, aes(x = long, y = lat, size=scaled_rsl), color="blue", alpha=3/4) +
      theme_minimal(base_size=9) +
    ditch_the_axes +theme(panel.background = element_rect(fill='lightblue'))
-  
 ```
-
 
 ## Zoom 
 Zoom to selected areas to take a peak at what's happening locally.
