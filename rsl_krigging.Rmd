@@ -13,9 +13,11 @@ Note: This is all on Github @ https://github.com/daveism/RSL-krigging
 ## First install and load the libraries 
 ```{r}
 
+#function to install pacakages
 is.installed <- function(mypkg){
   is.element(mypkg, installed.packages()[,1])
 }
+
 
 #install if not installed
 if (!is.installed("stringr")){ install.packages("sp") }
@@ -32,7 +34,7 @@ if (!is.installed("leaflet")){ install.packages("rgdal") }
 if (!is.installed("leaflet")){ install.packages("rgeos") }
 if (!is.installed("leaflet")){ install.packages("raster") }
 
-
+#add libraries
 suppressPackageStartupMessages({
   library(sp)
   library(gstat)
@@ -48,7 +50,8 @@ suppressPackageStartupMessages({
   library(raster)
 })
 
-options(scipen = 999)  #because scientific notation is not readable by normal people :)
+ #because scientific notation is not readable by normal people :)
+options(scipen = 999) 
 
 ```
 ## Load the RSL data I already did some clean up.
