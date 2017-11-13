@@ -26,14 +26,14 @@ is.installed <- function(mypkg){
 
 #install if not installed
 if (!is.installed("stringr")){ install.packages("sp") }
-if (!is.installed("dplyr")){ install.packages("gstat") }
-if (!is.installed("ggplot2")){ install.packages("dplyr") }
-if (!is.installed("tidyr")){ install.packages("ggplot2") }
-if (!is.installed("lubridate")){ install.packages("scales") }
-if (!is.installed("ggmap")){ install.packages("magrittr") }
-if (!is.installed("maptools")){ install.packages("maps") }
-if (!is.installed("maps")){ install.packages("maptools") }
-if (!is.installed("maptools")){ install.packages("plyr") }
+if (!is.installed("gstat")){ install.packages("gstat") }
+if (!is.installed("dplyr")){ install.packages("dplyr") }
+if (!is.installed("ggplot2")){ install.packages("ggplot2") }
+if (!is.installed("scales")){ install.packages("scales") }
+if (!is.installed("magrittr")){ install.packages("magrittr") }
+if (!is.installed("maps")){ install.packages("maps") }
+if (!is.installed("maptools")){ install.packages("maptools") }
+if (!is.installed("plyr")){ install.packages("plyr") }
 if (!is.installed("sp")){ install.packages("sp") }
 if (!is.installed("rgdal")){ install.packages("rgdal") }
 if (!is.installed("rgeos")){ install.packages("rgeos") }
