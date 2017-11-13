@@ -37,7 +37,7 @@ if (!is.installed("maptools")){ install.packages("plyr") }
 if (!is.installed("sp")){ install.packages("sp") }
 if (!is.installed("leaflet")){ install.packages("rgdal") }
 if (!is.installed("leaflet")){ install.packages("rgeos") }
-if (!is.installed("leaflet")){ install.packages("raster") }
+if (!is.installed("raster")){ install.packages("raster") }
 
 #add libraries
 suppressPackageStartupMessages({
