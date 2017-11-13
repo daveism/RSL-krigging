@@ -2,10 +2,15 @@
 title: "Krigging Example with Relative Sea Level Rise"
 output:
   html_document:
-    toc: false
+    toc: no
     toc_float:
-      collapsed: false
-      smooth_scroll: false
+      collapsed: no
+      smooth_scroll: no
+  html_notebook:
+    toc: no
+    toc_float:
+      collapsed: no
+      smooth_scroll: no
 ---
 
 Note: This is all on Github @ https://github.com/daveism/RSL-krigging
@@ -121,18 +126,21 @@ us_base <-  c(geom_polygon(aes(long,lat,group=group), size = 0.1, colour= "gray5
 min_rsl <- abs(min(rsl$real_rsl))
 rsl$scaled_rsl <- (rsl$real_rsl + min_rsl) + 1
 ```
+
 ## View RSL 
 ```{r}
 rsl %>% as.data.frame %>% 
   ggplot(aes(long, lat)) + geom_point(aes(size=real_rsl), color="blue", alpha=3/4) + 
   ggtitle("holocene RSL mm per year") + coord_equal() + theme_bw()
 ```
+
 ## View GPS
 ```{r}
 rsl %>% as.data.frame %>% 
   ggplot(aes(long, lat)) + geom_point(aes(size=real_gps), color="blue", alpha=3/4) + 
   ggtitle("GPS mm per year") + coord_equal() + theme_bw()
 ```
+
 ## View Average GPS
 ```{r}
 
@@ -140,6 +148,7 @@ rsl %>% as.data.frame %>%
   ggplot(aes(long, lat)) + geom_point(aes(size=real_gps_avg), color="blue", alpha=3/4) + 
   ggtitle("Average GPS mm per year") + coord_equal() + theme_bw()
 ```
+
 ## Map observations with a simple base map
 ```{r}
  ggplot() +
@@ -150,6 +159,7 @@ rsl %>% as.data.frame %>%
    ditch_the_axes +
     theme(panel.background = element_rect(fill='lightblue'))
 ```
+
 ## Make a new dataset so we can convert the RSL data to a sp data frame
 ```{r}
 rslsp <- rsl
@@ -160,6 +170,7 @@ glimpse(rslsp)
 #write shapefile un comment this if you want the rsl shapefile.  use to create a buffered shapefile for importing
 #writeOGR(obj=rslsp, dsn=shapefiles, layer="rslpoints", driver="ESRI Shapefile")
 ```
+
 ## Map RSL using the scaled points
 ```{r}
  ggplot() +
@@ -171,21 +182,25 @@ glimpse(rslsp)
    ditch_the_axes +
     theme(panel.background = element_rect(fill='lightblue'))
 ```
+
 ## Remove Duplicate points?  I cannot find them but R complains about them.
 ```{r}
 #apparently there are duplicated points I cannot find them but this remove them
 rslsp <- rslsp [-zerodist(rslsp)[,1],]
 ```
+
 ## Do variogram and fitted variogram?
 ```{r}
 lzn.vgm <- variogram(scaled_rsl~1, rslsp) # calculates sample variogam values 
 plot(lzn.vgm)
 ```  
+
 ## plot the variogram
 ```{r}
 lzn.fit <- fit.variogram(lzn.vgm, model=vgm("Gau")) # fit model
 plot(lzn.vgm, lzn.fit)
 ```
+
 ## Create the spatial grid covering the study area here we are setting the number of squares to 7500
 ```{r}
 
@@ -202,10 +217,12 @@ gridded(grd) <- TRUE  # Create SpatialPixel object
 fullgrid(grd) <- TRUE  # Create SpatialGrid object
 plot(grd)
 ```
+
 ## Run ordinary krigging on the scaled RSL.
 ```{r}
 lzn.kriged <- krige(scaled_rsl~1, rslsp , grd, model=lzn.fit)
 ```
+
 ## Plot the points and the krigging results...
 ```{r}
 lzn.kriged %>% as.data.frame %>%
@@ -265,6 +282,7 @@ plotloc <- function(loc){
   return(map)
 }
 ```
+
 ## Boston, MA
 ```{r}
 Boston <- subset(places, places$geonameid == 4930956)
@@ -272,6 +290,7 @@ Boston <- subset(places, places$geonameid == 4930956)
 BostonMap <- plotloc(Boston)
 BostonMap
 ```
+
 ## New York, NY
 ```{r}
 
@@ -280,6 +299,7 @@ NewYork <- subset(places, places$geonameid == 5128581)
  NewYorkMap <- plotloc(NewYork)
  NewYorkMap
 ```
+
 ## Baltimore, MD
 ```{r}
 
@@ -288,6 +308,7 @@ Baltimore <- subset(places, places$geonameid == 4347778)
 BaltimoreMap <- plotloc(Baltimore)
 BaltimoreMap
 ```
+
 ## Norfolk, VA
 ```{r}
 
@@ -296,6 +317,7 @@ Norfolk <- subset(places, places$geonameid == 4776222)
 NorfolkMap <- plotloc(Norfolk)
 NorfolkMap
 ```
+
 ## Wilmington, NC
 ```{r}
 
@@ -304,6 +326,7 @@ Wilmington <- subset(places, places$geonameid == 4499379)
 WilmingtonMap <- plotloc(Wilmington)
 WilmingtonMap
 ```
+
 ## Charleston, SC
 ```{r}
 
@@ -312,6 +335,7 @@ Charleston <- subset(places, places$geonameid == 4574324)
 CharlestonMap <- plotloc(Charleston)
 CharlestonMap
 ```
+
 ## Savannah, SC
 ```{r}
 
@@ -321,6 +345,7 @@ Savannah <- subset(places, places$geonameid == 4221552)
 SavannahMap <- plotloc(Savannah)
 SavannahMap
 ```
+
 ## Jacksonville, FL
 ```{r}
 
