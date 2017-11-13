@@ -214,7 +214,7 @@ lzn.kriged %>% as.data.frame %>%
 ```
 
 ## Mask the krigged 
-mask the outout with the coast line shapefile so we do not see predicted values in land.  
+mask the output with the buffer relative sea level shapefile, this will limit the area we are predicting.
 Then convert the raster back to sp data frame. 
 ```{r}
 krigged.raster <- raster(lzn.kriged)
